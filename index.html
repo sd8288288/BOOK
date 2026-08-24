@@ -163,6 +163,55 @@
     :root { --font-size: 18px; }
     #content { padding-left: 18px; padding-right: 18px; }
   }
+  /* ---------- 书架首页 ---------- */
+  #home {
+    position: fixed; inset: 0; z-index: 25;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #home[hidden] { display: none; }
+  .home-head { padding: calc(env(safe-area-inset-top) + 34px) 22px 6px; }
+  .home-head h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.015em; }
+  .home-sub { margin-top: 6px; color: var(--text-soft); font-size: 14px; }
+  .home-search { padding: 12px 18px 4px; }
+  .home-search input {
+    width: 100%; padding: 11px 14px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    font-size: 15px; outline: none; font-family: inherit;
+  }
+  .home-list { flex: 1; overflow-y: auto; padding: 6px 12px 12px; -webkit-overflow-scrolling: touch; }
+  .book-card {
+    display: flex; align-items: center; gap: 14px; width: calc(100% - 12px);
+    text-align: left; border: none; background: var(--panel); color: var(--text);
+    padding: 14px 16px; margin: 8px 6px; border-radius: 14px; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: transform .15s ease, background .15s; font-family: inherit;
+  }
+  .book-card:active { transform: scale(.985); background: var(--line); }
+  .book-card .bc-icon {
+    width: 42px; height: 54px; border-radius: 6px; flex: 0 0 auto;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 65%, transparent), var(--accent));
+    display: grid; place-items: center; color: #fff; font-size: 20px; font-weight: 600;
+  }
+  .book-card .bc-meta { flex: 1; min-width: 0; }
+  .book-card .bc-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book-card .bc-file { font-size: 12px; color: var(--text-soft); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-empty { padding: 50px 24px; text-align: center; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
+  .home-foot { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+  .home-foot .pick-btn { width: 100%; }
+  /* ---------- 章末「下一章」卡片 ---------- */
+  .next-chapter {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 2.4em 0 0.4em; padding: 16px 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    cursor: pointer; transition: transform .15s, background .15s; color: var(--text);
+  }
+  .next-chapter:active { transform: scale(.985); background: var(--line); }
+  .next-chapter .nc-label { font-size: 12px; color: var(--text-soft); flex: 0 0 auto; }
+  .next-chapter .nc-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: 4px; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .next-chapter .nc-arrow { color: var(--accent); font-size: 20px; flex: 0 0 auto; }
+  .next-chapter.end { cursor: default; }
+  .next-chapter.end .nc-arrow { color: var(--text-soft); font-size: 13px; font-weight: 400; }
 </style>
 </head>
 <body data-theme="light">
@@ -201,12 +250,7 @@
   <div class="drawer-body" id="tocList"></div>
 </aside>
 
-<!-- 书库抽屉 -->
-<aside class="drawer left" id="bookDrawer">
-  <div class="drawer-head">书库 <button class="icon-btn" data-close>✕</button></div>
-  <div class="drawer-search"><input type="text" id="bookSearch" placeholder="搜索书名…"></div>
-  <div class="drawer-body" id="bookList"></div>
-</aside>
+<!-- 书架首页由 #home 全屏呈现（见下方） -->
 
 <!-- 设置抽屉 -->
 <aside class="drawer right" id="setDrawer">
@@ -251,6 +295,19 @@
   </div>
 </aside>
 
+<!-- 书架首页（全屏） -->
+<section id="home" hidden>
+  <div class="home-head">
+    <h1>我的书架</h1>
+    <div class="home-sub">选择一本书开始阅读</div>
+  </div>
+  <div class="home-search"><input type="text" id="homeSearch" placeholder="搜索书名…" autocomplete="off"></div>
+  <div class="home-list" id="homeList"></div>
+  <div class="home-foot">
+    <button class="pick-btn" id="homePickBtn">📂 打开本地 TXT</button>
+  </div>
+</section>
+
 <div id="loader"><div class="spinner"></div><div style="color:var(--text-soft);font-size:14px">正在加载…</div></div>
 <div id="error">
   <p id="errMsg">无法自动加载小说文件。</p>
@@ -286,6 +343,7 @@
   const bookTitleEl = $("#bookTitle");
   const progressBar = $("#progressBar");
   const chapterPos = $("#chapterPos");
+  const tapZones = $("#tapZones");
 
   // ============ 章节解析 ============
   // 多模式正则，统计每种模式命中的标题行数，择优采用
@@ -361,7 +419,18 @@
         html += "<p" + (i === 0 ? ' class="no-indent"' : "") + ">" + p + "</p>";
       });
     }
+    // 章末「下一章」卡片：始终可达，不依赖底部栏
+    if (state.current < state.chapters.length - 1) {
+      const nt = state.chapters[state.current + 1].title;
+      html += '<div class="next-chapter" id="nextChapterCard"><span class="nc-label">下一章</span><span class="nc-title">' + escapeHtml(nt) + '</span><span class="nc-arrow">›</span></div>';
+    } else {
+      html += '<div class="next-chapter end"><span class="nc-label">已是最后一章</span><span class="nc-arrow">共 ' + state.chapters.length + ' 章</span></div>';
+    }
     content.innerHTML = html;
+    const ncc = document.getElementById("nextChapterCard");
+    if (ncc) ncc.addEventListener("click", () => {
+      if (state.current < state.chapters.length - 1) renderChapter(state.current + 1);
+    });
     reader.scrollTop = 0;
     updateChrome();
     saveProgress();
@@ -417,16 +486,14 @@
   function closeDrawers() {
     scrim.classList.remove("show");
     $("#tocDrawer").classList.remove("show");
-    $("#bookDrawer").classList.remove("show");
     $("#setDrawer").classList.remove("show");
   }
   scrim.addEventListener("click", closeDrawers);
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeDrawers));
   $("#btnToc").addEventListener("click", () => { renderToc($("#tocSearch").value); openDrawer($("#tocDrawer")); });
-  $("#btnBooks").addEventListener("click", () => { renderBookList($("#bookSearch").value); openDrawer($("#bookDrawer")); });
+  $("#btnBooks").addEventListener("click", showHome);
   $("#btnSettings").addEventListener("click", () => openDrawer($("#setDrawer")));
   $("#tocSearch").addEventListener("input", (e) => renderToc(e.target.value));
-  $("#bookSearch").addEventListener("input", (e) => renderBookList(e.target.value));
 
   // ============ 翻页 / 滚动 ============
   $("#prevCh").addEventListener("click", () => renderChapter(state.current - 1));
@@ -456,8 +523,8 @@
 
   let chromeTimer = null;
   function setChromeVisible(v) {
+    // 只让顶栏跟随滚动隐藏；底栏（含上一章/下一章）始终保留，确保可翻章
     $("#topbar").classList.toggle("hidden", !v);
-    $("#bottombar").classList.toggle("hidden", !v);
   }
 
   // ============ 设置持久化 ============
@@ -589,26 +656,47 @@
     } catch (e) { /* 无书库则忽略 */ }
   }
 
-  function renderBookList(filter) {
-    const list = $("#bookList");
+  // ============ 书架首页（#home，全屏） ============
+  function showHome() {
+    document.getElementById("home").hidden = false;
+    reader.style.display = "none";
+    $("#topbar").classList.add("hidden");
+    tapZones.style.display = "none";
+    renderHome($("#homeSearch").value);
+  }
+
+  function showReader() {
+    document.getElementById("home").hidden = true;
+    reader.style.display = "";
+    $("#topbar").classList.remove("hidden");
+    tapZones.style.display = (state.turnMode === "tap") ? "" : "none";
+    reader.scrollTop = 0;
+  }
+
+  function renderHome(filter) {
+    const list = $("#homeList");
     list.innerHTML = "";
     const f = (filter || "").trim().toLowerCase();
     const items = BOOKS.filter((b) => !f || b.title.toLowerCase().includes(f));
-    const local = { id: "_local", title: "本地 TXT（选择文件）", src: null };
-    const all = items.concat(local);
-    if (!all.length) { list.innerHTML = '<div class="toc-empty">未配置书库（books.json）</div>'; return; }
-    for (const b of all) {
-      const btn = document.createElement("button");
-      btn.className = "toc-item" + (b.id === state.bookId ? " active" : "");
-      btn.textContent = b.title;
-      btn.addEventListener("click", () => {
-        closeDrawers();
-        if (b.src) loadBookById(b.src, b.title);
-        else $("#fileInput").click();
+    if (!items.length) {
+      list.innerHTML = '<div class="home-empty">书库还是空的。<br>把 .txt 小说推到仓库，等待 Actions 自动生成 books.json，<br>或点击下方按钮打开本地 TXT。</div>';
+      return;
+    }
+    for (const b of items) {
+      const card = document.createElement("button");
+      card.className = "book-card";
+      const initial = (b.title || "📖").trim().slice(0, 1) || "📖";
+      card.innerHTML = '<div class="bc-icon">' + escapeHtml(initial) + '</div><div class="bc-meta"><div class="bc-title">' + escapeHtml(b.title) + '</div><div class="bc-file">' + escapeHtml(b.src) + '</div></div>';
+      card.addEventListener("click", () => {
+        showReader();
+        loadBookById(b.src, b.title);
       });
-      list.appendChild(btn);
+      list.appendChild(card);
     }
   }
+
+  $("#homeSearch").addEventListener("input", (e) => renderHome(e.target.value));
+  $("#homePickBtn").addEventListener("click", () => $("#fileInput").click());
 
   // 文件选择 / 拖拽兜底
   function readFile(f) {
@@ -653,10 +741,8 @@
       try { await loadBookById(last, last.split("/").pop().replace(/\.txt$/i, "")); return; } catch (e) { /* 继续 */ }
     }
 
-    // 3. 书库首本
-    if (BOOKS.length) {
-      try { await loadBookById(BOOKS[0].src, BOOKS[0].title); return; } catch (e) { /* 继续 */ }
-    }
+    // 3. 书库首页（无阅读历史时作为默认落地）
+    if (BOOKS.length) { showHome(); return; }
 
     // 4. 默认候选文件
     for (const c of ["novel.txt", "book.txt", "小说.txt"]) {
