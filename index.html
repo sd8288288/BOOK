@@ -196,6 +196,11 @@
   .book-card .bc-meta { flex: 1; min-width: 0; }
   .book-card .bc-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .book-card .bc-file { font-size: 12px; color: var(--text-soft); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book-card .bc-badge {
+    display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
   .home-empty { padding: 50px 24px; text-align: center; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
   .home-foot { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
   .home-foot .pick-btn { width: 100%; }
@@ -595,6 +600,9 @@
   function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return String(h); }
   function rememberLastBook(id) { try { localStorage.setItem("novelReader.lastBook", id); } catch (e) {} }
   function getLastBook() { try { return localStorage.getItem("novelReader.lastBook"); } catch (e) { return null; } }
+  function savedProgress(id) {
+    try { const r = localStorage.getItem("novelReader.progress." + hashStr(id)); return r ? JSON.parse(r) : null; } catch (e) { return null; }
+  }
 
   // ============ 文件加载 ============
   // 本地路径或远程 http(s) URL 均可；raw.githubusercontent.com / jsDelivr 等均放行 CORS
@@ -677,7 +685,16 @@
     const list = $("#homeList");
     list.innerHTML = "";
     const f = (filter || "").trim().toLowerCase();
-    const items = BOOKS.filter((b) => !f || b.title.toLowerCase().includes(f));
+    let items = BOOKS.filter((b) => !f || b.title.toLowerCase().includes(f));
+    const last = getLastBook();
+    // 有阅读进度的排在前面，其次「上次在读」的书
+    items.sort((a, b) => {
+      const ai = (savedProgress(a.src) ? 1 : 0) - (savedProgress(b.src) ? 1 : 0);
+      if (ai) return ai;
+      if (a.src === last) return -1;
+      if (b.src === last) return 1;
+      return 0;
+    });
     if (!items.length) {
       list.innerHTML = '<div class="home-empty">书库还是空的。<br>把 .txt 小说推到仓库，等待 Actions 自动生成 books.json，<br>或点击下方按钮打开本地 TXT。</div>';
       return;
@@ -686,7 +703,11 @@
       const card = document.createElement("button");
       card.className = "book-card";
       const initial = (b.title || "📖").trim().slice(0, 1) || "📖";
-      card.innerHTML = '<div class="bc-icon">' + escapeHtml(initial) + '</div><div class="bc-meta"><div class="bc-title">' + escapeHtml(b.title) + '</div><div class="bc-file">' + escapeHtml(b.src) + '</div></div>';
+      const prog = savedProgress(b.src);
+      const badge = prog
+        ? '<div class="bc-badge">继续阅读 · 第' + (prog.idx + 1) + "章</div>"
+        : (b.src === last ? '<div class="bc-badge">上次在读</div>' : "");
+      card.innerHTML = '<div class="bc-icon">' + escapeHtml(initial) + '</div><div class="bc-meta"><div class="bc-title">' + escapeHtml(b.title) + '</div><div class="bc-file">' + escapeHtml(b.src) + "</div>" + badge + "</div>";
       card.addEventListener("click", () => {
         showReader();
         loadBookById(b.src, b.title);
@@ -735,22 +756,15 @@
 
     await loadBookManifest();
 
-    // 2. 续读上次打开的书
-    const last = getLastBook();
-    if (last && last !== "_local") {
-      try { await loadBookById(last, last.split("/").pop().replace(/\.txt$/i, "")); return; } catch (e) { /* 继续 */ }
+    // 书库为空时（无 books.json），把默认候选文件也作为书架条目（单本/无清单场景）
+    if (!BOOKS.length) {
+      for (const c of ["novel.txt", "book.txt", "小说.txt"]) {
+        BOOKS.push({ id: c, title: c.replace(/\.txt$/i, ""), src: c });
+      }
     }
 
-    // 3. 书库首页（无阅读历史时作为默认落地）
-    if (BOOKS.length) { showHome(); return; }
-
-    // 4. 默认候选文件
-    for (const c of ["novel.txt", "book.txt", "小说.txt"]) {
-      try { await loadBookById(c, c.replace(/\.txt$/i, "")); return; } catch (e) { /* 继续 */ }
-    }
-
-    // 5. 兜底
-    showError("未能自动找到小说文件。可点击下方按钮选择本地 TXT，或在同目录放置 novel.txt / 配置 books.json。");
+    // 书库首页为固定落地页；点击某本书后再从章节记忆处续读
+    showHome();
   }
 
   boot();
