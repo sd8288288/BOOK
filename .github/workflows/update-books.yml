@@ -1,0 +1,33 @@
+name: Update Bookshelf
+
+# 每次 push 到主分支后，自动扫描仓库内的 .txt 小说并重写 books.json（书架）。
+# 新增/删除 txt 都会被同步；提交信息含 [skip ci]，避免自触发死循环。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # 允许在 Actions 页面手动触发
+
+permissions:
+  contents: write        # 允许工作流把更新后的 books.json 推回仓库
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Regenerate books.json
+        run: python scripts/build_books.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet books.json; then
+            echo "books.json 无变化，跳过提交"
+          else
+            git add books.json
+            git commit -m "chore: auto-update books.json [skip ci]"
+            git push
+          fi
