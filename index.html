@@ -313,7 +313,7 @@
   </div>
 </section>
 
-<div id="loader"><div class="spinner"></div><div style="color:var(--text-soft);font-size:14px">正在加载…</div></div>
+<div id="loader"><div class="spinner"></div><div id="loaderText" style="color:var(--text-soft);font-size:14px">正在加载…</div></div>
 <div id="error">
   <p id="errMsg">无法自动加载小说文件。</p>
   <button class="pick-btn" id="pickBtn">选择 TXT 文件</button>
@@ -343,6 +343,7 @@
   const reader = $("#reader");
   const content = $("#content");
   const loader = $("#loader");
+  const loaderText = $("#loaderText");
   const errorBox = $("#error");
   const errMsg = $("#errMsg");
   const bookTitleEl = $("#bookTitle");
@@ -390,6 +391,51 @@
       }
       // 首个章节标题之前的卷首语（书名/作者等）直接忽略
     }
+    return chapters.map((c) => buildChapter(c.title, c.lines));
+  }
+
+  // 异步版：每解析 5000 行让出主线程，onCount(chapterCount) 让 UI 显示进度
+  async function parseNovelAsync(raw, onCount) {
+    const text = (raw || "").replace(/﻿/g, "");
+    const lines = text.split(/\r?\n/);
+    const total = lines.length;
+    const YIELD_EVERY = 5000;
+    const sleep = () => new Promise((r) => setTimeout(r, 0));
+
+    // 第一遍：构建 trimmed 数组（顺便按需让出）
+    const trimmed = new Array(total);
+    for (let i = 0; i < total; i++) {
+      trimmed[i] = lines[i].replace(/\s+$/, "");
+      if ((i & 0x1fff) === 0 && i > 0) await sleep();
+    }
+
+    // 统计各模式命中数
+    let best = null;
+    for (const p of PATTERNS) {
+      let count = 0;
+      for (let i = 0; i < total; i++) if (isTitleLine(trimmed[i], p.re)) count++;
+      if (count >= 2 && (!best || count > best.count)) best = { p, count };
+    }
+    if (!best) return [buildChapter("正文", trimmed)];
+
+    const re = best.p.re;
+    const chapters = [];
+    let cur = null;
+    for (let i = 0; i < total; i++) {
+      const l = trimmed[i];
+      if (isTitleLine(l, re)) {
+        cur = { title: l.trim(), lines: [] };
+        chapters.push(cur);
+        if (onCount && (chapters.length & 0x3f) === 0) onCount(chapters.length);
+      } else if (cur) {
+        cur.lines.push(l);
+      }
+      if ((i % YIELD_EVERY) === 0 && i > 0) {
+        if (onCount) onCount(chapters.length);
+        await sleep();
+      }
+    }
+    if (onCount) onCount(chapters.length);
     return chapters.map((c) => buildChapter(c.title, c.lines));
   }
 
@@ -611,14 +657,22 @@
     const url = isRemote ? src : (encodeURIComponent(src) + "?t=" + Date.now());
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    return await res.text();
+    const buf = await res.arrayBuffer();
+    // 优先 UTF-8（fatal：碰到非法序列即抛错）；失败回退 GB18030（GBK 超集）
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(buf);
+    } catch (e) {
+      try { return new TextDecoder("gb18030").decode(buf); } catch (e2) { return new TextDecoder("utf-8").decode(buf); }
+    }
   }
 
-  function ingest(raw, name, id) {
+  async function ingest(raw, name, id) {
     state.bookName = name || "小说";
     state.bookId = id || name || "unknown";
-    state.chapters = parseNovel(raw);
     bookTitleEl.textContent = state.bookName;
+    loaderText.textContent = "解析章节中…";
+    state.chapters = await parseNovelAsync(raw, (n) => { loaderText.textContent = "已识别 " + n + " 章…"; });
+    loaderText.textContent = "准备就绪";
     loader.style.display = "none";
     errorBox.style.display = "none";
     renderToc("");
@@ -631,10 +685,11 @@
   async function loadBookById(src, title) {
     loader.style.display = "flex";
     errorBox.style.display = "none";
+    loaderText.textContent = "下载中…";
     try {
       const raw = await fetchText(src);
       rememberLastBook(src);
-      ingest(raw, title || src.split("/").pop().replace(/\.txt$/i, ""), src);
+      await ingest(raw, title || src.split("/").pop().replace(/\.txt$/i, ""), src);
     } catch (e) {
       showError("加载失败：" + src + "\n" + e.message);
     }
