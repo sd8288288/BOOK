@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#f5f5f7">
-<meta name="x-build" content="v3-no-scrollbar-and-title-fixed">
+<meta name="x-build" content="v4-fixed-card-size">
 <title>阅读器</title>
 <style>
   :root {
@@ -194,6 +194,7 @@
     display: flex; align-items: flex-end; justify-content: space-between;
     padding: 0 18px 12px;
     flex: 0 0 auto;
+    align-self: center; width: 100%; max-width: 560px;
   }
   .home-head h1 {
     margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
@@ -211,6 +212,7 @@
   .home-search-row {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 18px 8px; flex: 0 0 auto;
+    align-self: center; width: 100%; max-width: 560px;
   }
   .home-search-row input {
     flex: 1; padding: 10px 14px; border-radius: 12px;
@@ -223,6 +225,7 @@
     display: flex; gap: 10px; padding: 6px 18px 10px;
     overflow-x: auto; flex: 0 0 auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    align-self: center; width: 100%; max-width: 560px;
   }
   .home-filters::-webkit-scrollbar { display: none; }
   .chip {
@@ -244,6 +247,7 @@
     gap: 14px 10px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    align-self: center; width: 100%; max-width: 560px;
   }
   .home-grid::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .bk {
@@ -491,7 +495,7 @@
 <section id="home" hidden>
   <header class="home-head">
     <div class="home-head-left">
-      <h1 title="build: v3-no-scrollbar-and-title-fixed">书架</h1>
+      <h1 title="build: v4-fixed-card-size">书架</h1>
       <div class="home-sub" id="homeSub">— 本书 —</div>
     </div>
     <div class="home-head-right">
@@ -1317,7 +1321,7 @@
     reader.style.display = "none";
     $("#topbar").classList.add("hidden");
     renderHome();
-    $("#homeSub").textContent = BOOKS.length + " 本书 · v3";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v4";
   }
 
   function showReader() {
@@ -1399,7 +1403,7 @@
       frag.appendChild(card);
     }
     list.appendChild(frag);
-    $("#homeSub").textContent = BOOKS.length + " 本书 · v3";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v4";
   }
 
   // 搜索：默认收起，点 🔍 展开
