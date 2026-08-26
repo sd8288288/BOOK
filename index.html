@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="x-build" content="v2-title-fix">
 <meta name="theme-color" content="#f5f5f7">
+<meta name="x-build" content="v3-no-scrollbar-and-title-fixed">
 <title>阅读器</title>
 <style>
   :root {
@@ -47,7 +47,7 @@
     border-bottom: 1px solid var(--line);
     transition: transform .3s ease, opacity .3s ease;
   }
-  header.hidden { transform: translateY(-100%); opacity: 0; visibility: hidden; pointer-events: none; }
+  header.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
   .icon-btn {
     width: auto; min-width: 38px; height: 38px; padding: 0 12px;
     border: none; border-radius: 18px;
@@ -105,7 +105,7 @@
     border-top: 1px solid var(--line);
     transition: transform .3s ease, opacity .3s ease;
   }
-  footer.hidden { transform: translateY(100%); opacity: 0; visibility: hidden; pointer-events: none; }
+  footer.hidden { transform: translateY(100%); opacity: 0; pointer-events: none; }
   .progress-track { height: 3px; background: var(--line); }
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .15s linear; }
   .footer-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; font-size: 13px; color: var(--text-soft); }
@@ -180,6 +180,7 @@
     #content { padding-left: 18px; padding-right: 18px; }
   }
   /* ---------- 书架首页（微信读书风，全屏） ---------- */
+  /* v3 兜底：外层 #home 直接吃下顶部安全区 + 48px，避免任何子元素的 padding 被覆盖/继承失效 */
   #home {
     position: fixed; inset: 0; z-index: 25;
     background: var(--bg); color: var(--text);
@@ -188,12 +189,12 @@
   }
   #home[hidden] { display: none; }
   /* 顶部 header：左侧大字+副标题，右侧两个图标按钮 */
+  /* padding-top 已外移到 #home，这里只留水平内边距和下边距 */
   .home-head {
     display: flex; align-items: flex-end; justify-content: space-between;
-    padding: calc(env(safe-area-inset-top) + 40px) 18px 12px;
+    padding: 0 18px 12px;
     flex: 0 0 auto;
   }
-  .home-head h1 { margin-top: 2px; }
   .home-head h1 {
     margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
   }
@@ -224,11 +225,6 @@
     scrollbar-width: none;
   }
   .home-filters::-webkit-scrollbar { display: none; }
-  /* 居中并限制内容宽度（手机宽度居中，避免宽屏书卡被拉成巨型方块）*/
-  .home-head, .home-search-row, .home-filters, .home-grid {
-    max-width: 560px; width: 100%;
-    margin-left: auto; margin-right: auto;
-  }
   .chip {
     flex: 0 0 auto; padding: 7px 16px; border-radius: 999px;
     border: 1px solid var(--line); background: transparent; color: var(--text);
@@ -239,14 +235,17 @@
     background: var(--accent); color: #fff; border-color: var(--accent);
     font-weight: 600;
   }
-  /* 3 列书网格 */
+  /* 3 列书网格 - 隐藏滚动条但保留滚动能力（避免 home 内的丑陋滚动条） */
   .home-grid {
     flex: 1; overflow-y: auto; overflow-x: hidden;
     padding: 6px 14px calc(96px + env(safe-area-inset-bottom));
     -webkit-overflow-scrolling: touch;
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 14px 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .home-grid::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .bk {
     display: flex; flex-direction: column; cursor: pointer;
     background: transparent; border: none; padding: 0; text-align: left;
@@ -406,7 +405,7 @@
 </head>
 <body data-theme="light">
 
-<header id="topbar" class="hidden">
+<header id="topbar">
   <button class="icon-btn" id="btnBack" aria-label="返回书架">‹ 书架</button>
   <button class="icon-btn" id="btnToc" aria-label="目录">☰</button>
   <button class="title-btn" id="bookTitleBtn" aria-label="返回书架">
@@ -420,7 +419,7 @@
   <article id="content"></article>
 </div>
 
-<footer id="bottombar" class="hidden">
+<footer id="bottombar">
   <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
   <div class="footer-bar">
     <button class="nav-btn" id="prevCh">‹ 上一章</button>
@@ -492,7 +491,7 @@
 <section id="home" hidden>
   <header class="home-head">
     <div class="home-head-left">
-      <h1 title="build: v2-title-fix">书架</h1>
+      <h1 title="build: v3-no-scrollbar-and-title-fixed">书架</h1>
       <div class="home-sub" id="homeSub">— 本书 —</div>
     </div>
     <div class="home-head-right">
@@ -1317,16 +1316,14 @@
     document.getElementById("home").hidden = false;
     reader.style.display = "none";
     $("#topbar").classList.add("hidden");
-    $("#bottombar").classList.add("hidden");
     renderHome();
-    $("#homeSub").textContent = BOOKS.length + " 本书 · v2";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v3";
   }
 
   function showReader() {
     document.getElementById("home").hidden = true;
     reader.style.display = "";
     $("#topbar").classList.remove("hidden");
-    $("#bottombar").classList.remove("hidden");
     reader.scrollTop = 0;
     document.querySelectorAll(".sort-menu").forEach((n) => n.classList.remove("show"));
   }
@@ -1402,7 +1399,7 @@
       frag.appendChild(card);
     }
     list.appendChild(frag);
-    $("#homeSub").textContent = BOOKS.length + " 本书 · v2";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v3";
   }
 
   // 搜索：默认收起，点 🔍 展开
