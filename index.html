@@ -48,14 +48,25 @@
   }
   header.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
   .icon-btn {
-    width: 38px; height: 38px; border: none; border-radius: 50%;
-    background: transparent; color: var(--text); font-size: 20px;
-    display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
-    transition: background .2s;
+    width: auto; min-width: 38px; height: 38px; padding: 0 12px;
+    border: none; border-radius: 18px;
+    background: transparent; color: var(--text); font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; flex: 0 0 auto;
+    transition: background .2s, transform .1s;
   }
-  .icon-btn:active { background: var(--line); }
+  .icon-btn:active { background: var(--line); transform: scale(.96); }
+  .title-btn {
+    flex: 1; min-width: 0; padding: 0 8px; height: 38px; border: none; border-radius: 18px;
+    background: transparent; color: var(--text); font: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; transition: background .2s; overflow: hidden;
+  }
+  .title-btn:hover, .title-btn:active { background: var(--line); }
+  .title-btn .title-arrow { font-size: 16px; opacity: .55; flex: 0 0 auto; }
+  .title-btn #bookTitle { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
   .book-title {
-    flex: 1; min-width: 0; font-size: 15px; font-weight: 600;
+    font-size: 15px; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
   }
   /* ---------- 阅读区 ---------- */
@@ -166,47 +177,158 @@
     :root { --font-size: 18px; }
     #content { padding-left: 18px; padding-right: 18px; }
   }
-  /* ---------- 书架首页 ---------- */
+  /* ---------- 书架首页（微信读书风，全屏） ---------- */
   #home {
     position: fixed; inset: 0; z-index: 25;
     background: var(--bg); color: var(--text);
     display: flex; flex-direction: column; overflow: hidden;
   }
   #home[hidden] { display: none; }
-  .home-head { padding: calc(env(safe-area-inset-top) + 34px) 22px 6px; }
-  .home-head h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.015em; }
-  .home-sub { margin-top: 6px; color: var(--text-soft); font-size: 14px; }
-  .home-search { padding: 12px 18px 4px; }
-  .home-search input {
-    width: 100%; padding: 11px 14px; border-radius: 12px;
+  /* 顶部 header：左侧大字+副标题，右侧两个图标按钮 */
+  .home-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: calc(env(safe-area-inset-top) + 18px) 18px 10px;
+    flex: 0 0 auto;
+  }
+  .home-head h1 {
+    margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
+  }
+  .home-sub { margin-top: 4px; color: var(--text-soft); font-size: 13px; }
+  .home-head-right { display: flex; gap: 6px; }
+  .hbtn {
+    width: 38px; height: 38px; border: none; border-radius: 50%;
+    background: transparent; color: var(--text); font-size: 18px;
+    display: grid; place-items: center; cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .hbtn:active { background: var(--line); transform: scale(.94); }
+  /* 搜索行（默认收起） */
+  .home-search-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 18px 8px; flex: 0 0 auto;
+  }
+  .home-search-row input {
+    flex: 1; padding: 10px 14px; border-radius: 12px;
     border: 1px solid var(--line); background: var(--panel); color: var(--text);
     font-size: 15px; outline: none; font-family: inherit;
   }
-  .home-list { flex: 1; overflow-y: auto; padding: 6px 12px 12px; -webkit-overflow-scrolling: touch; }
-  .book-card {
-    display: flex; align-items: center; gap: 14px; width: calc(100% - 12px);
-    text-align: left; border: none; background: var(--panel); color: var(--text);
-    padding: 14px 16px; margin: 8px 6px; border-radius: 14px; cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: transform .15s ease, background .15s; font-family: inherit;
+  .home-search-row[hidden] { display: none; }
+  /* 分类 chips */
+  .home-filters {
+    display: flex; gap: 10px; padding: 6px 18px 10px;
+    overflow-x: auto; flex: 0 0 auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  .book-card:active { transform: scale(.985); background: var(--line); }
-  .book-card .bc-icon {
-    width: 42px; height: 54px; border-radius: 6px; flex: 0 0 auto;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 65%, transparent), var(--accent));
-    display: grid; place-items: center; color: #fff; font-size: 20px; font-weight: 600;
+  .home-filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; padding: 7px 16px; border-radius: 999px;
+    border: 1px solid var(--line); background: transparent; color: var(--text);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
   }
-  .book-card .bc-meta { flex: 1; min-width: 0; }
-  .book-card .bc-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .book-card .bc-file { font-size: 12px; color: var(--text-soft); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .book-card .bc-badge {
-    display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px;
-    font-size: 11px; font-weight: 600; color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  .chip.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    font-weight: 600;
   }
-  .home-empty { padding: 50px 24px; text-align: center; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
-  .home-foot { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
-  .home-foot .pick-btn { width: 100%; }
+  /* 3 列书网格 */
+  .home-grid {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 6px 14px calc(96px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px 10px;
+  }
+  .bk {
+    display: flex; flex-direction: column; cursor: pointer;
+    background: transparent; border: none; padding: 0; text-align: left;
+    color: var(--text); font: inherit;
+  }
+  .bk:active .bk-cover { transform: scale(.97); }
+  .bk-cover {
+    position: relative; width: 100%; aspect-ratio: 3 / 4;
+    border-radius: 8px; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 10px 8px 8px; color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08);
+    transition: transform .15s;
+  }
+  .bk-cover::after {
+    /* 顶部细微高光 */
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 38%;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), transparent);
+    pointer-events: none;
+  }
+  .bk-bigchar {
+    font-family: "Songti SC", "STSong", "SimSun", Georgia, serif;
+    font-size: 26px; font-weight: 700; line-height: 1.1;
+    writing-mode: vertical-rl; text-orientation: upright;
+    letter-spacing: 2px;
+    margin-top: 6px; flex: 1; overflow: hidden;
+    text-shadow: 0 1px 2px rgba(0,0,0,.18);
+  }
+  .bk-mininame {
+    font-family: "Songti SC", "STSong", "SimSun", Georgia, serif;
+    font-size: 12px; opacity: .9; letter-spacing: 1px;
+    border-top: 1px solid rgba(255,255,255,.35); padding-top: 6px;
+  }
+  .bk-tag {
+    position: absolute; top: 0; right: 0;
+    background: rgba(0,0,0,.42); color: #fff;
+    font-size: 10px; font-weight: 600;
+    padding: 3px 6px; border-bottom-left-radius: 6px;
+    backdrop-filter: blur(6px);
+  }
+  .bk-tag.fresh { background: linear-gradient(135deg, #ff5252, #ff1744); }
+  .bk-tag.done { background: rgba(255,255,255,.82); color: #333; }
+  .bk-name {
+    font-size: 13px; font-weight: 600;
+    line-height: 1.35; margin-top: 8px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; min-height: 36px;
+  }
+  .bk-prog {
+    font-size: 11px; color: var(--text-soft); margin-top: 4px;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .bk-progbar { height: 3px; background: var(--line); border-radius: 999px; margin-top: 5px; overflow: hidden; }
+  .bk-progbar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  /* 空状态 */
+  .home-empty {
+    grid-column: 1 / -1;
+    padding: 60px 24px; text-align: center; color: var(--text-soft);
+    font-size: 14px; line-height: 1.7;
+  }
+  /* 悬浮「导入本地书」按钮 */
+  .fab {
+    position: fixed; right: 20px; bottom: calc(28px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px; border: none; border-radius: 50%;
+    background: linear-gradient(135deg, #ff5f6d, #ff1744);
+    color: #fff; font-size: 28px; font-weight: 300;
+    display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(255,23,68,.35), 0 2px 6px rgba(0,0,0,.12);
+    transition: transform .15s; z-index: 30;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .fab:active { transform: scale(.92); }
+  /* 排序菜单 */
+  .sort-menu {
+    position: fixed; right: 14px; top: calc(env(safe-area-inset-top) + 64px);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px 0; min-width: 140px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 40; display: none;
+  }
+  .sort-menu.show { display: block; }
+  .sort-menu button {
+    width: 100%; padding: 10px 16px; border: none; background: transparent;
+    color: var(--text); text-align: left; font-size: 14px; cursor: pointer;
+    font-family: inherit;
+  }
+  .sort-menu button:hover { background: var(--line); }
+  .sort-menu button.active { color: var(--accent); font-weight: 600; }
+  @media (max-width: 360px) {
+    .home-grid { grid-template-columns: repeat(3, 1fr); gap: 12px 8px; padding-left: 10px; padding-right: 10px; }
+    .home-head h1 { font-size: 28px; }
+  }
   /* ---------- 章末「下一章」卡片 ---------- */
   .next-chapter {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -225,9 +347,11 @@
 <body data-theme="light">
 
 <header id="topbar">
+  <button class="icon-btn" id="btnBack" aria-label="返回书架">‹ 书架</button>
   <button class="icon-btn" id="btnToc" aria-label="目录">☰</button>
-  <div class="book-title" id="bookTitle">未加载</div>
-  <button class="icon-btn" id="btnBooks" aria-label="书库">📚</button>
+  <button class="title-btn" id="bookTitleBtn" aria-label="返回书架">
+    <span class="title-arrow">‹</span><span id="bookTitle">未加载</span>
+  </button>
   <button class="icon-btn" id="btnSettings" aria-label="设置">Aa</button>
 </header>
 
@@ -303,17 +427,30 @@
   </div>
 </aside>
 
-<!-- 书架首页（全屏） -->
+<!-- 书架首页（全屏，微信读书风） -->
 <section id="home" hidden>
-  <div class="home-head">
-    <h1>我的书架</h1>
-    <div class="home-sub">选择一本书开始阅读</div>
+  <header class="home-head">
+    <div class="home-head-left">
+      <h1>书架</h1>
+      <div class="home-sub" id="homeSub">— 本书 —</div>
+    </div>
+    <div class="home-head-right">
+      <button class="hbtn" id="btnHomeSearch" aria-label="搜索">🔍</button>
+      <button class="hbtn" id="btnHomeMenu" aria-label="排序">≡</button>
+    </div>
+  </header>
+  <div class="home-search-row" id="homeSearchRow" hidden>
+    <input type="text" id="homeSearch" placeholder="搜索书名…" autocomplete="off">
+    <button class="hbtn" id="btnHomeSearchCancel">取消</button>
   </div>
-  <div class="home-search"><input type="text" id="homeSearch" placeholder="搜索书名…" autocomplete="off"></div>
-  <div class="home-list" id="homeList"></div>
-  <div class="home-foot">
-    <button class="pick-btn" id="homePickBtn">📂 打开本地 TXT</button>
+  <div class="home-filters" id="homeFilters">
+    <button class="chip active" data-filter="all">全部</button>
+    <button class="chip" data-filter="reading">在读</button>
+    <button class="chip" data-filter="done">已读完</button>
+    <button class="chip" data-filter="new">未读</button>
   </div>
+  <div class="home-grid" id="homeList"></div>
+  <button class="fab" id="fabImport" aria-label="导入本地书">＋</button>
 </section>
 
 <div id="loader"><div class="spinner"></div><div id="loaderText" style="color:var(--text-soft);font-size:14px">正在加载…</div></div>
@@ -545,7 +682,8 @@
   scrim.addEventListener("click", closeDrawers);
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeDrawers));
   $("#btnToc").addEventListener("click", () => { renderToc($("#tocSearch").value); openDrawer($("#tocDrawer")); });
-  $("#btnBooks").addEventListener("click", showHome);
+  $("#btnBack").addEventListener("click", showHome);
+  $("#bookTitleBtn").addEventListener("click", showHome);
   $("#btnSettings").addEventListener("click", () => openDrawer($("#setDrawer")));
   $("#tocSearch").addEventListener("input", (e) => renderToc(e.target.value));
 
@@ -641,7 +779,7 @@
   // ============ 进度记忆 ============
   function progressKey() { return "novelReader.progress." + hashStr(state.bookId || state.bookName); }
   function saveProgress() {
-    try { localStorage.setItem(progressKey(), JSON.stringify({ idx: state.current, ts: Date.now() })); } catch (e) {}
+    try { localStorage.setItem(progressKey(), JSON.stringify({ idx: state.current, total: state.chapters.length, ts: Date.now() })); } catch (e) {}
   }
   function loadProgress() {
     try { return JSON.parse(localStorage.getItem(progressKey())); } catch (e) { return null; }
@@ -651,6 +789,15 @@
   function getLastBook() { try { return localStorage.getItem("novelReader.lastBook"); } catch (e) { return null; } }
   function savedProgress(id) {
     try { const r = localStorage.getItem("novelReader.progress." + hashStr(id)); return r ? JSON.parse(r) : null; } catch (e) { return null; }
+  }
+  // 进度状态计算（id → { type: 'done'|'pct'|'new', pct, idx, total }）
+  function progressInfo(id) {
+    const p = savedProgress(id);
+    if (!p || typeof p.idx !== "number") return { type: "new" };
+    const total = (typeof p.total === "number" && p.total > 0) ? p.total : (p.idx + 1);
+    if (p.idx >= total - 1) return { type: "done", pct: 100 };
+    const pct = Math.max(1, Math.min(99, Math.round((p.idx / (total - 1)) * 100)));
+    return { type: "pct", pct, idx: p.idx, total };
   }
 
   // ============ 文件加载 ============
@@ -723,12 +870,44 @@
   }
 
   // ============ 书架首页（#home，全屏） ============
+  // 书架状态
+  const shelfState = { filter: "all", query: "", sort: "smart" };
+
+  // 7 套配色板（按书名 hash 取）
+  const COVERS = [
+    ["#3a5cff", "#a44cff"],
+    ["#ff5f6d", "#ffc371"],
+    ["#11998e", "#38ef7d"],
+    ["#5b247a", "#1bcedf"],
+    ["#c94b4b", "#4b134f"],
+    ["#f7971e", "#ffd200"],
+    ["#0f2027", "#2c5364"],
+  ];
+  function bgOf(title) {
+    let h = 0;
+    for (let i = 0; i < (title || "").length; i++) { h = (h * 31 + title.charCodeAt(i)) | 0; }
+    const a = COVERS[Math.abs(h) % COVERS.length];
+    const b = COVERS[Math.abs(h >> 3) % COVERS.length];
+    return "linear-gradient(135deg, " + a[0] + " 0%, " + a[1] + " 60%, " + b[0] + " 100%)";
+  }
+  function bigCharOf(title) {
+    // 取首个可见字符（跳过装饰/书名号/空白）
+    const t = (title || "").replace(/^[\s《「(\[]+/, "");
+    return (t && t.trim().slice(0, 1)) || "📖";
+  }
+  function shortNameOf(title) {
+    // 封面下方小字：截前 6 字符
+    const t = (title || "").replace(/[\s《》「」\[\]()]/g, "");
+    return t.length <= 6 ? t : (t.slice(0, 5) + "…");
+  }
+
   function showHome() {
     document.getElementById("home").hidden = false;
     reader.style.display = "none";
     $("#topbar").classList.add("hidden");
     tapZones.style.display = "none";
-    renderHome($("#homeSearch").value);
+    renderHome();
+    $("#homeSub").textContent = BOOKS.length + " 本书";
   }
 
   function showReader() {
@@ -737,45 +916,135 @@
     $("#topbar").classList.remove("hidden");
     tapZones.style.display = (state.turnMode === "tap") ? "" : "none";
     reader.scrollTop = 0;
+    document.querySelectorAll(".sort-menu").forEach((n) => n.classList.remove("show"));
   }
 
-  function renderHome(filter) {
+  function renderHome() {
     const list = $("#homeList");
     list.innerHTML = "";
-    const f = (filter || "").trim().toLowerCase();
-    let items = BOOKS.filter((b) => !f || b.title.toLowerCase().includes(f));
+    const q = (shelfState.query || "").trim().toLowerCase();
+    let items = BOOKS.slice();
+    if (q) items = items.filter((b) => (b.title || "").toLowerCase().includes(q));
+    // 过滤
+    if (shelfState.filter !== "all") {
+      items = items.filter((b) => {
+        const info = progressInfo(b.src);
+        if (shelfState.filter === "reading") return info.type === "pct";
+        if (shelfState.filter === "done") return info.type === "done";
+        if (shelfState.filter === "new") return info.type === "new";
+        return true;
+      });
+    }
+    // 排序
     const last = getLastBook();
-    // 有阅读进度的排在前面，其次「上次在读」的书
     items.sort((a, b) => {
-      const ai = (savedProgress(a.src) ? 1 : 0) - (savedProgress(b.src) ? 1 : 0);
-      if (ai) return ai;
-      if (a.src === last) return -1;
-      if (b.src === last) return 1;
-      return 0;
+      if (shelfState.sort === "recent") {
+        return (savedProgress(b.src)?.ts || 0) - (savedProgress(a.src)?.ts || 0);
+      }
+      if (shelfState.sort === "name") {
+        return (a.title || "").localeCompare(b.title || "", "zh-Hans-CN");
+      }
+      // smart: 在读 > 已读 > 新书; 同类按最近
+      const rank = (b) => { const i = progressInfo(b.src); return i.type === "pct" ? 0 : i.type === "done" ? 1 : 2; };
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (savedProgress(b.src)?.ts || 0) - (savedProgress(a.src)?.ts || 0);
     });
     if (!items.length) {
-      list.innerHTML = '<div class="home-empty">书库还是空的。<br>把 .txt 小说推到仓库，等待 Actions 自动生成 books.json，<br>或点击下方按钮打开本地 TXT。</div>';
+      list.innerHTML = '<div class="home-empty">书库还是空的。<br>把 .txt 小说推到仓库，等待 Actions 自动生成 books.json，<br>或点右下角 ＋ 打开本地 TXT。</div>';
       return;
     }
+    const frag = document.createDocumentFragment();
     for (const b of items) {
+      const info = progressInfo(b.src);
       const card = document.createElement("button");
-      card.className = "book-card";
-      const initial = (b.title || "📖").trim().slice(0, 1) || "📖";
-      const prog = savedProgress(b.src);
-      const badge = prog
-        ? '<div class="bc-badge">继续阅读 · 第' + (prog.idx + 1) + "章</div>"
-        : (b.src === last ? '<div class="bc-badge">上次在读</div>' : "");
-      card.innerHTML = '<div class="bc-icon">' + escapeHtml(initial) + '</div><div class="bc-meta"><div class="bc-title">' + escapeHtml(b.title) + '</div><div class="bc-file">' + escapeHtml(b.src) + "</div>" + badge + "</div>";
+      card.className = "bk";
+      card.type = "button";
+
+      let tag = "";
+      if (info.type === "new") tag = '<div class="bk-tag fresh">未读</div>';
+      else if (info.type === "done") tag = '<div class="bk-tag done">完结</div>';
+
+      let progHTML = "";
+      if (info.type === "pct") {
+        progHTML = '<div class="bk-prog"><span>已读 ' + info.pct + '%</span><span>第 ' + (info.idx + 1) + ' 章</span></div>' +
+                   '<div class="bk-progbar"><i style="width:' + info.pct + '%"></i></div>';
+      } else if (info.type === "done") {
+        progHTML = '<div class="bk-prog"><span>已读完</span><span style="color:var(--accent)">' + (info.idx + 1) + ' 章</span></div>';
+      } else {
+        progHTML = '<div class="bk-prog"><span>未开始</span><span>轻点开启 ›</span></div>';
+      }
+
+      card.innerHTML =
+        '<div class="bk-cover" style="background:' + bgOf(b.title) + '">' +
+          tag +
+          '<div class="bk-bigchar">' + escapeHtml(bigCharOf(b.title)) + '</div>' +
+          '<div class="bk-mininame">' + escapeHtml(shortNameOf(b.title)) + '</div>' +
+        '</div>' +
+        '<div class="bk-name">' + escapeHtml(b.title || "未命名") + '</div>' +
+        progHTML;
       card.addEventListener("click", () => {
         showReader();
         loadBookById(b.src, b.title);
       });
-      list.appendChild(card);
+      frag.appendChild(card);
     }
+    list.appendChild(frag);
+    $("#homeSub").textContent = BOOKS.length + " 本书";
   }
 
-  $("#homeSearch").addEventListener("input", (e) => renderHome(e.target.value));
-  $("#homePickBtn").addEventListener("click", () => $("#fileInput").click());
+  // 搜索：默认收起，点 🔍 展开
+  $("#btnHomeSearch").addEventListener("click", () => {
+    const row = $("#homeSearchRow");
+    const show = row.hidden;
+    row.hidden = !show;
+    if (show) { $("#homeSearch").focus(); }
+    else { shelfState.query = ""; $("#homeSearch").value = ""; renderHome(); }
+  });
+  $("#btnHomeSearchCancel").addEventListener("click", () => {
+    $("#homeSearchRow").hidden = true;
+    shelfState.query = ""; $("#homeSearch").value = ""; renderHome();
+  });
+  $("#homeSearch").addEventListener("input", (e) => { shelfState.query = e.target.value; renderHome(); });
+
+  // 分类筛选
+  $("#homeFilters").addEventListener("click", (e) => {
+    const t = e.target.closest(".chip"); if (!t) return;
+    $("#homeFilters .chip").forEach((c) => c.classList.remove("active"));
+    t.classList.add("active");
+    shelfState.filter = t.dataset.filter || "all";
+    renderHome();
+  });
+
+  // 排序菜单（按钮 + 弹层）
+  const sortBtn = $("#btnHomeMenu");
+  let sortMenu = document.querySelector(".sort-menu");
+  if (!sortMenu) {
+    sortMenu = document.createElement("div");
+    sortMenu.className = "sort-menu";
+    sortMenu.innerHTML =
+      '<button data-sort="smart" class="active">智能排序</button>' +
+      '<button data-sort="recent">最近阅读</button>' +
+      '<button data-sort="name">书名 A→Z</button>';
+    document.body.appendChild(sortMenu);
+  }
+  sortBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sortMenu.classList.toggle("show");
+    sortMenu.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.sort === shelfState.sort));
+  });
+  sortMenu.addEventListener("click", (e) => {
+    const t = e.target.closest("button"); if (!t) return;
+    shelfState.sort = t.dataset.sort || "smart";
+    sortMenu.classList.remove("show");
+    renderHome();
+  });
+  document.addEventListener("click", (e) => {
+    if (!sortMenu.contains(e.target) && e.target !== sortBtn) sortMenu.classList.remove("show");
+  });
+
+  // FAB：导入本地 txt
+  $("#fabImport").addEventListener("click", () => $("#fileInput").click());
 
   // 文件选择 / 拖拽兜底
   function readFile(f) {
