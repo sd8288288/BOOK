@@ -172,11 +172,8 @@
   .load-progress { width: 220px; max-width: 72%; height: 4px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 2px; }
   .load-progress-bar { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .2s linear; }
   #loadPercent { margin-top: 10px; font-size: 12px; color: var(--text-soft); font-variant-numeric: tabular-nums; }
-  /* 点击翻页热区 */
-  .tap-zones { position: absolute; inset: 52px 0 56px 0; z-index: 10; display: flex; pointer-events: none; }
-  .tap-zones .z { flex: 1; pointer-events: auto; }
-  .tap-zones .z.mid { flex: 2.2; }
-  @media (hover: hover) and (pointer: fine) { .tap-zones { display: none; } }
+  /* 点击翻章：改由 #reader 自身 click 监听处理（见脚本），不再使用覆盖层，
+     避免移动端覆盖层拦截触摸导致阅读区无法滚动。 */
   @media (max-width: 480px) {
     :root { --font-size: 18px; }
     #content { padding-left: 18px; padding-right: 18px; }
@@ -346,6 +343,57 @@
   .next-chapter .nc-arrow { color: var(--accent); font-size: 20px; flex: 0 0 auto; }
   .next-chapter.end { cursor: default; }
   .next-chapter.end .nc-arrow { color: var(--text-soft); font-size: 13px; font-weight: 400; }
+  /* ---------- 书签与笔记 ---------- */
+  .bm-btn.filled { color: var(--accent); }
+  .bm-add {
+    width: 100%; padding: 12px; border: 1px dashed var(--line); background: transparent;
+    color: var(--accent); border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
+  }
+  .bm-add:active { background: var(--line); }
+  .bm-item {
+    display: block; width: 100%; text-align: left; border: 1px solid var(--line);
+    background: none; color: var(--text); padding: 12px; border-radius: 12px; margin-bottom: 8px; cursor: pointer;
+    transition: background .15s;
+  }
+  .bm-item:active { background: var(--line); }
+  .bm-ch { font-size: 12px; color: var(--text-soft); margin-bottom: 4px; }
+  .bm-snip {
+    font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .bm-note { font-size: 13px; color: var(--accent); margin-top: 6px; line-height: 1.5; word-break: break-word; }
+  .bm-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .bm-time { font-size: 11px; color: var(--text-soft); }
+  .bm-actions { display: flex; gap: 4px; }
+  .bm-ic { width: 30px; height: 30px; border: none; background: var(--bg); border-radius: 8px; color: var(--text-soft); font-size: 14px; cursor: pointer; display: grid; place-items: center; }
+  .bm-ic:active { background: var(--line); }
+  .bm-empty { padding: 40px 16px; text-align: center; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
+  /* 笔记弹层 */
+  .bm-modal { position: fixed; inset: 0; z-index: 60; display: none; }
+  .bm-modal.show { display: block; }
+  .bm-sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel);
+    border-top-left-radius: 18px; border-top-right-radius: 18px; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    box-shadow: var(--shadow);
+  }
+  .bm-sheet h3 { margin: 0 0 12px; font-size: 16px; }
+  .bm-sheet textarea {
+    width: 100%; min-height: 96px; resize: none; padding: 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 15px; outline: none;
+  }
+  .bm-sheet-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .bm-sheet-actions button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .bm-save { background: var(--accent); color: #fff; }
+  .bm-cancel { background: var(--line); color: var(--text); }
+  /* 跳转高亮 */
+  @keyframes bmflash { 0% { background: color-mix(in srgb, var(--accent) 32%, transparent); } 100% { background: transparent; } }
+  .bm-flash { animation: bmflash 1.6s ease; border-radius: 6px; }
+  /* Toast */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(10px);
+    background: rgba(0,0,0,.82); color: #fff; font-size: 13.5px; padding: 10px 18px; border-radius: 999px;
+    z-index: 70; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; max-width: 80vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body data-theme="light">
@@ -356,17 +404,12 @@
   <button class="title-btn" id="bookTitleBtn" aria-label="返回书架">
     <span class="title-arrow">‹</span><span id="bookTitle">未加载</span>
   </button>
+  <button class="icon-btn bm-btn" id="btnBm" aria-label="书签">🔖</button>
   <button class="icon-btn" id="btnSettings" aria-label="设置">Aa</button>
 </header>
 
 <div id="reader" aria-live="polite">
   <article id="content"></article>
-</div>
-
-<div class="tap-zones" id="tapZones">
-  <div class="z left" data-dir="-1"></div>
-  <div class="z mid"></div>
-  <div class="z right" data-dir="1"></div>
 </div>
 
 <footer id="bottombar">
@@ -431,6 +474,12 @@
   </div>
 </aside>
 
+<!-- 书签抽屉 -->
+<aside class="drawer right" id="bmDrawer">
+  <div class="drawer-head">书签 <span id="bmCount" style="font-size:13px;color:var(--text-soft);font-weight:400"></span> <button class="icon-btn" data-close>✕</button></div>
+  <div class="drawer-body" id="bmList"></div>
+</aside>
+
 <!-- 书架首页（全屏，微信读书风） -->
 <section id="home" hidden>
   <header class="home-head">
@@ -464,6 +513,20 @@
   <input type="file" id="fileInput" class="file-input" accept=".txt,text/plain">
 </div>
 
+<!-- 书签笔记弹层 -->
+<div class="bm-modal" id="bmModal">
+  <div class="scrim" id="bmModalScrim" style="background:rgba(0,0,0,.4)"></div>
+  <div class="bm-sheet">
+    <h3>书签笔记</h3>
+    <textarea id="bmNoteInput" placeholder="写点什么…（可选）"></textarea>
+    <div class="bm-sheet-actions">
+      <button class="bm-cancel" id="bmNoteCancel">取消</button>
+      <button class="bm-save" id="bmNoteSave">保存</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
 <script>
 "use strict";
 (function () {
@@ -495,7 +558,6 @@
   const bookTitleEl = $("#bookTitle");
   const progressBar = $("#progressBar");
   const chapterPos = $("#chapterPos");
-  const tapZones = $("#tapZones");
 
   // ============ 章节解析 ============
   // 多模式正则，统计每种模式命中的标题行数，择优采用
@@ -615,7 +677,7 @@
       html += '<p class="no-indent" style="color:var(--text-soft)">（本章无内容）</p>';
     } else {
       ch.paragraphs.forEach((p, i) => {
-        html += "<p" + (i === 0 ? ' class="no-indent"' : "") + ">" + p + "</p>";
+        html += "<p" + (i === 0 ? ' class="no-indent"' : "") + ' data-pidx="' + i + '">' + p + "</p>";
       });
     }
     // 章末「下一章」卡片：始终可达，不依赖底部栏
@@ -634,6 +696,7 @@
     updateChrome();
     saveProgress();
     markActiveToc();
+    refreshBmButton();
   }
 
   function escapeHtml(s) {
@@ -695,15 +758,215 @@
   $("#btnSettings").addEventListener("click", () => openDrawer($("#setDrawer")));
   $("#tocSearch").addEventListener("input", (e) => renderToc(e.target.value));
 
+  // ============ 书签与笔记 ============
+  const bmDrawer = $("#bmDrawer");
+  const bmList = $("#bmList");
+  const bmCount = $("#bmCount");
+  const bmModal = $("#bmModal");
+  const bmNoteInput = $("#bmNoteInput");
+  const btnBm = $("#btnBm");
+  let editingBmId = null;
+  let bmScrollTimer = null;
+
+  function bmStoreKey() { return "novelReader.bm." + hashStr(state.bookId || state.bookName); }
+  function loadBookmarks() {
+    try { const a = JSON.parse(localStorage.getItem(bmStoreKey())); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function saveBookmarks(arr) {
+    try { localStorage.setItem(bmStoreKey(), JSON.stringify(arr)); } catch (e) {}
+  }
+  function bmDedupeKey(chapter, paragraph) { return chapter + ":" + paragraph; }
+
+  // 当前阅读位置：章节 + 最接近视口顶部的段落
+  function currentLocation() {
+    const chapter = state.current;
+    const ps = content.querySelectorAll("p[data-pidx]");
+    let paragraph = 0, snippet = "";
+    if (ps.length) {
+      const ref = reader.getBoundingClientRect().top + 80;
+      let best = 0, bestDist = Infinity;
+      ps.forEach((p, i) => {
+        const d = Math.abs(p.getBoundingClientRect().top - ref);
+        if (d < bestDist) { bestDist = d; best = i; }
+      });
+      paragraph = best;
+      snippet = (ps[best].textContent || "").trim().slice(0, 40);
+    }
+    return { chapter, paragraph, snippet, chapterTitle: state.chapters[chapter] ? state.chapters[chapter].title : "" };
+  }
+
+  function refreshBmButton() {
+    if (!btnBm) return;
+    const loc = currentLocation();
+    const list = loadBookmarks();
+    const exists = list.some((b) => bmDedupeKey(b.chapter, b.paragraph) === bmDedupeKey(loc.chapter, loc.paragraph));
+    btnBm.classList.toggle("filled", exists);
+  }
+
+  function relTime(ts) {
+    if (!ts) return "";
+    const d = (Date.now() - ts) / 1000;
+    if (d < 60) return "刚刚";
+    if (d < 3600) return Math.floor(d / 60) + " 分钟前";
+    if (d < 86400) return Math.floor(d / 3600) + " 小时前";
+    if (d < 86400 * 30) return Math.floor(d / 86400) + " 天前";
+    try { return new Date(ts).toLocaleDateString("zh-CN"); } catch (e) { return ""; }
+  }
+
+  function renderBookmarks() {
+    const list = loadBookmarks().slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    bmCount.textContent = list.length ? "(" + list.length + ")" : "";
+    bmList.innerHTML = "";
+    const addBtn = document.createElement("button");
+    addBtn.className = "bm-add";
+    addBtn.textContent = "＋ 收藏当前位置";
+    addBtn.addEventListener("click", addBookmarkAtCurrent);
+    bmList.appendChild(addBtn);
+    if (!list.length) {
+      const e = document.createElement("div");
+      e.className = "bm-empty";
+      e.textContent = "还没有书签。点上方按钮收藏当前阅读位置，可写下笔记。";
+      bmList.appendChild(e);
+      return;
+    }
+    for (const b of list) {
+      const item = document.createElement("button");
+      item.className = "bm-item";
+      const ch = document.createElement("div");
+      ch.className = "bm-ch";
+      ch.textContent = (typeof b.chapter === "number" ? "第 " + (b.chapter + 1) + " 章 · " : "") + (b.chapterTitle || "");
+      const snip = document.createElement("div");
+      snip.className = "bm-snip";
+      snip.textContent = b.snippet || "（无正文）";
+      item.appendChild(ch);
+      item.appendChild(snip);
+      if (b.note) {
+        const note = document.createElement("div");
+        note.className = "bm-note";
+        note.textContent = "📝 " + b.note;
+        item.appendChild(note);
+      }
+      const meta = document.createElement("div");
+      meta.className = "bm-meta";
+      const time = document.createElement("span");
+      time.className = "bm-time";
+      time.textContent = relTime(b.createdAt);
+      const actions = document.createElement("div");
+      actions.className = "bm-actions";
+      const edit = document.createElement("button");
+      edit.className = "bm-ic"; edit.textContent = "✎"; edit.title = "编辑笔记";
+      edit.addEventListener("click", (ev) => { ev.stopPropagation(); openNoteEditor(b.id); });
+      const del = document.createElement("button");
+      del.className = "bm-ic"; del.textContent = "🗑"; del.title = "删除";
+      del.addEventListener("click", (ev) => { ev.stopPropagation(); deleteBookmark(b.id); });
+      actions.appendChild(edit); actions.appendChild(del);
+      meta.appendChild(time); meta.appendChild(actions);
+      item.appendChild(meta);
+      item.addEventListener("click", () => gotoBookmark(b));
+      bmList.appendChild(item);
+    }
+  }
+
+  function addBookmarkAtCurrent() {
+    const loc = currentLocation();
+    let list = loadBookmarks();
+    const key = bmDedupeKey(loc.chapter, loc.paragraph);
+    const existing = list.find((b) => bmDedupeKey(b.chapter, b.paragraph) === key);
+    if (existing) { toast("该位置已有书签"); openNoteEditor(existing.id); return; }
+    const bm = {
+      id: "bm" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      chapter: loc.chapter, paragraph: loc.paragraph, snippet: loc.snippet,
+      chapterTitle: loc.chapterTitle, note: "", createdAt: Date.now(),
+    };
+    list.push(bm);
+    saveBookmarks(list);
+    refreshBmButton();
+    renderBookmarks();
+    toast("已收藏当前位置");
+  }
+
+  function deleteBookmark(id) {
+    const list = loadBookmarks().filter((b) => b.id !== id);
+    saveBookmarks(list);
+    refreshBmButton();
+    renderBookmarks();
+    toast("已删除书签");
+  }
+
+  function openNoteEditor(id) {
+    editingBmId = id;
+    const bm = loadBookmarks().find((b) => b.id === id);
+    bmNoteInput.value = bm && bm.note ? bm.note : "";
+    bmModal.classList.add("show");
+  }
+  function closeNoteEditor() { editingBmId = null; bmModal.classList.remove("show"); }
+  function saveNote() {
+    if (!editingBmId) return;
+    const list = loadBookmarks();
+    const bm = list.find((b) => b.id === editingBmId);
+    if (bm) { bm.note = bmNoteInput.value.trim(); saveBookmarks(list); }
+    closeNoteEditor();
+    renderBookmarks();
+    toast("笔记已保存");
+  }
+
+  function gotoBookmark(bm) {
+    closeDrawers();
+    let idx = bm.chapter;
+    if (idx == null || idx < 0 || idx >= state.chapters.length) {
+      const found = state.chapters.findIndex((c) => c.title === bm.chapterTitle);
+      idx = found >= 0 ? found : 0;
+    }
+    renderChapter(idx);
+    requestAnimationFrame(() => {
+      const ps = content.querySelectorAll("p[data-pidx]");
+      const target = ps[bm.paragraph] || ps[Math.min(bm.paragraph || 0, ps.length - 1)];
+      if (target) {
+        target.scrollIntoView({ block: "start" });
+        target.classList.add("bm-flash");
+        setTimeout(() => target.classList.remove("bm-flash"), 1700);
+      }
+    });
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $("#toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
+  }
+
+  btnBm.addEventListener("click", () => {
+    const loc = currentLocation();
+    const list = loadBookmarks();
+    const exists = list.some((b) => bmDedupeKey(b.chapter, b.paragraph) === bmDedupeKey(loc.chapter, loc.paragraph));
+    if (!exists) addBookmarkAtCurrent();
+    renderBookmarks();
+    openDrawer(bmDrawer);
+  });
+  $("#bmNoteCancel").addEventListener("click", closeNoteEditor);
+  $("#bmNoteSave").addEventListener("click", saveNote);
+  $("#bmModalScrim").addEventListener("click", closeNoteEditor);
+
   // ============ 翻页 / 滚动 ============
   $("#prevCh").addEventListener("click", () => renderChapter(state.current - 1));
   $("#nextCh").addEventListener("click", () => renderChapter(state.current + 1));
 
-  $("#tapZones").addEventListener("click", (e) => {
+  // 点击翻章：直接监听 #reader 自身（覆盖层会拦截触摸导致手机无法滑动，故移除）。
+  // 浏览器在滚动/拖拽后不会触发 click，因此「滑动」与「点击翻章」天然区分。
+  reader.addEventListener("click", (e) => {
     if (state.turnMode !== "tap") return;
-    const dir = e.target.dataset.dir;
-    if (dir === "-1") renderChapter(state.current - 1);
-    else if (dir === "1") renderChapter(state.current + 1);
+    // 卡片/链接等交互元素不触发翻章
+    if (e.target.closest(".next-chapter, a, button")) return;
+    const rect = reader.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const w = rect.width;
+    if (x < w / 3) renderChapter(state.current - 1);
+    else if (x > (2 * w) / 3) renderChapter(state.current + 1);
   });
 
   // 滚动进度（仅用于视觉反馈，不影响章节定位）
@@ -719,6 +982,8 @@
       reader._lastTop = reader.scrollTop;
       setChromeVisible(!goingDown || reader.scrollTop < 10);
     }
+    clearTimeout(bmScrollTimer);
+    bmScrollTimer = setTimeout(refreshBmButton, 250);
   });
 
   let chromeTimer = null;
@@ -764,7 +1029,7 @@
   function applyFont(f) { document.documentElement.style.setProperty("--font-family", FONT_MAP[f] || FONT_MAP.serif); }
   function applyFontSize(v) { document.documentElement.style.setProperty("--font-size", v + "px"); }
   function applyLineHeight(v) { document.documentElement.style.setProperty("--line-height", v); }
-  function applyTurn(m) { state.turnMode = m; $("#tapZones").style.display = (m === "tap") ? "" : "none"; }
+  function applyTurn(m) { state.turnMode = m; }
 
   $("#themeSwatches").addEventListener("click", (e) => {
     const el = e.target.closest(".swatch"); if (!el) return;
@@ -871,16 +1136,114 @@
     renderChapter(start);
   }
 
+  // ============ IndexedDB 缓存（解析结果） ============
+  // 下载+解析一次后存入本地，重开秒开；以 HEAD 校验 ETag / (长度+修改时间) 判定版本。
+  const DB_NAME = "novelReaderDB", DB_VER = 1, DB_STORE = "books";
+  let _db = null;
+  function openDB() {
+    return new Promise((resolve) => {
+      if (_db) return resolve(_db);
+      if (!("indexedDB" in window)) return resolve(null);
+      let req;
+      try { req = indexedDB.open(DB_NAME, DB_VER); } catch (e) { return resolve(null); }
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: "id" });
+      };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror = () => resolve(null);
+    });
+  }
+  async function getCache(id) {
+    try {
+      const db = await openDB();
+      if (!db) return null;
+      return await new Promise((resolve) => {
+        const tx = db.transaction(DB_STORE, "readonly");
+        const r = tx.objectStore(DB_STORE).get(id);
+        r.onsuccess = () => resolve(r.result || null);
+        r.onerror = () => resolve(null);
+      });
+    } catch (e) { return null; }
+  }
+  async function setCache(id, data) {
+    try {
+      const db = await openDB();
+      if (!db) return;
+      await new Promise((resolve) => {
+        const tx = db.transaction(DB_STORE, "readwrite");
+        tx.objectStore(DB_STORE).put(Object.assign({ id }, data));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) { /* 缓存写入失败不影响阅读 */ }
+  }
+
+  // 取远端版本信息（HEAD）；本地文件走不带时间戳的稳定 URL，便于与缓存比对
+  async function fetchHead(src) {
+    const isRemote = /^https?:\/\//i.test(src);
+    const url = isRemote ? src : encodeURIComponent(src);
+    try {
+      const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+      if (!res.ok) return null;
+      return {
+        etag: res.headers.get("etag"),
+        len: res.headers.get("content-length"),
+        lm: res.headers.get("last-modified"),
+      };
+    } catch (e) { return null; }
+  }
+  function versionMatches(head, cached) {
+    if (!head) return false; // 拿不到版本信息则不信任缓存，重新下载
+    if (head.etag && cached.etag && head.etag === cached.etag) return true;
+    if (head.len && cached.len && head.len === cached.len &&
+        head.lm && cached.lm && head.lm === cached.lm) return true;
+    // CDN 不返回 etag/last-modified 时（如 jsDelivr），退而用内容长度判定版本。
+    // 对小说 txt 足够：重新保存几乎必然改变字节数，等长异内容极罕见。
+    if (head.len && cached.len && head.len === cached.len) return true;
+    return false;
+  }
+  function applyCached(cached, src) {
+    state.bookName = cached.name || src.split("/").pop().replace(/\.txt$/i, "");
+    state.bookId = src;
+    bookTitleEl.textContent = state.bookName;
+    state.chapters = cached.chapters;
+    loader.style.display = "none";
+    errorBox.style.display = "none";
+    renderToc("");
+    let start = 0;
+    const p = loadProgress();
+    if (p && p.idx >= 0 && p.idx < state.chapters.length) start = p.idx;
+    renderChapter(start);
+  }
+
   async function loadBookById(src, title) {
     loader.style.display = "flex";
     errorBox.style.display = "none";
-    setLoadProgress(0, "下载中… 0%");
+    setLoadProgress(0, "准备中…");
     try {
+      // 命中缓存且版本未变 → 秒开，跳过下载与解析
+      const cached = await getCache(src);
+      if (cached && cached.chapters && versionMatches(await fetchHead(src), cached)) {
+        applyCached(cached, src);
+        return;
+      }
+      setLoadProgress(0, "下载中… 0%");
       const raw = await fetchText(src, (pct) => {
         setLoadProgress(Math.round(pct * 0.85), "下载中… " + pct + "%");
       });
       rememberLastBook(src);
       await ingest(raw, title || src.split("/").pop().replace(/\.txt$/i, ""), src);
+      // ingest 已解析并渲染，结果缓存起来供下次秒开
+      const head = await fetchHead(src);
+      setCache(src, {
+        name: state.bookName,
+        chapters: state.chapters,
+        etag: head ? head.etag : null,
+        len: head ? head.len : null,
+        lm: head ? head.lm : null,
+        ts: Date.now(),
+      });
     } catch (e) {
       showError("加载失败：" + src + "\n" + e.message);
     }
@@ -946,7 +1309,6 @@
     document.getElementById("home").hidden = false;
     reader.style.display = "none";
     $("#topbar").classList.add("hidden");
-    tapZones.style.display = "none";
     renderHome();
     $("#homeSub").textContent = BOOKS.length + " 本书";
   }
@@ -955,7 +1317,6 @@
     document.getElementById("home").hidden = true;
     reader.style.display = "";
     $("#topbar").classList.remove("hidden");
-    tapZones.style.display = (state.turnMode === "tap") ? "" : "none";
     reader.scrollTop = 0;
     document.querySelectorAll(".sort-menu").forEach((n) => n.classList.remove("show"));
   }

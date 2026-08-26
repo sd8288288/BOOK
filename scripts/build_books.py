@@ -19,6 +19,9 @@ OUT = "books.json"
 BOOKS_DIR = os.environ.get("BOOKS_DIR", "").strip()
 DENY_DIRS = {".git", ".github", "scripts", "node_modules", "assets"}
 
+# 仅生成 file（仓库内相对路径）：本地 `python -m http.server` 与 jsDelivr(站点)
+# 打开时，`file` 都会解析为同一仓库内的 txt，因此本地/线上行为一致，无需 url。
+
 CHAPTER_RE = re.compile(
     r"^\s*第\s*[0-9零一二三四五六七八九十百千万两]+\s*[章回卷节部篇集]"
     r"|^\s*chapter\s+\d+",
