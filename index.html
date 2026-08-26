@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="x-build" content="layout-fix-3">
+<meta name="x-build" content="v2-title-fix">
 <meta name="theme-color" content="#f5f5f7">
 <title>阅读器</title>
 <style>
@@ -184,6 +184,7 @@
     position: fixed; inset: 0; z-index: 25;
     background: var(--bg); color: var(--text);
     display: flex; flex-direction: column; overflow: hidden;
+    padding-top: calc(48px + env(safe-area-inset-top));
   }
   #home[hidden] { display: none; }
   /* 顶部 header：左侧大字+副标题，右侧两个图标按钮 */
@@ -491,7 +492,7 @@
 <section id="home" hidden>
   <header class="home-head">
     <div class="home-head-left">
-      <h1 title="build: layout-fix-3">书架</h1>
+      <h1 title="build: v2-title-fix">书架</h1>
       <div class="home-sub" id="homeSub">— 本书 —</div>
     </div>
     <div class="home-head-right">
@@ -1318,7 +1319,7 @@
     $("#topbar").classList.add("hidden");
     $("#bottombar").classList.add("hidden");
     renderHome();
-    $("#homeSub").textContent = BOOKS.length + " 本书";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v2";
   }
 
   function showReader() {
@@ -1401,7 +1402,7 @@
       frag.appendChild(card);
     }
     list.appendChild(frag);
-    $("#homeSub").textContent = BOOKS.length + " 本书";
+    $("#homeSub").textContent = BOOKS.length + " 本书 · v2";
   }
 
   // 搜索：默认收起，点 🔍 展开
