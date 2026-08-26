@@ -60,9 +60,12 @@
   }
   /* ---------- 阅读区 ---------- */
   #reader {
-    position: absolute; inset: 0;
+    position: fixed; inset: 0;   /* fixed 相对可视视口，移动端可正常滚动；absolute 在手机上会被锁高 */
+    height: 100vh; height: 100dvh;
     overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     scroll-behavior: smooth;
   }
   #content {
