@@ -168,6 +168,10 @@
   .pick-btn { background: var(--accent); color: #fff; border: none; padding: 11px 22px; border-radius: 980px; font-size: 15px; cursor: pointer; }
   .pick-btn:active { opacity: .85; }
   .file-input { display: none; }
+  /* 加载进度条 */
+  .load-progress { width: 220px; max-width: 72%; height: 4px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 2px; }
+  .load-progress-bar { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .2s linear; }
+  #loadPercent { margin-top: 10px; font-size: 12px; color: var(--text-soft); font-variant-numeric: tabular-nums; }
   /* 点击翻页热区 */
   .tap-zones { position: absolute; inset: 52px 0 56px 0; z-index: 10; display: flex; pointer-events: none; }
   .tap-zones .z { flex: 1; pointer-events: auto; }
@@ -453,7 +457,7 @@
   <button class="fab" id="fabImport" aria-label="导入本地书">＋</button>
 </section>
 
-<div id="loader"><div class="spinner"></div><div id="loaderText" style="color:var(--text-soft);font-size:14px">正在加载…</div></div>
+<div id="loader"><div class="spinner"></div><div id="loaderText" style="color:var(--text-soft);font-size:14px">正在加载…</div><div class="load-progress"><div class="load-progress-bar" id="loadProgressBar"></div></div><div id="loadPercent" style="color:var(--text-soft);font-size:12px">0%</div></div>
 <div id="error">
   <p id="errMsg">无法自动加载小说文件。</p>
   <button class="pick-btn" id="pickBtn">选择 TXT 文件</button>
@@ -484,6 +488,8 @@
   const content = $("#content");
   const loader = $("#loader");
   const loaderText = $("#loaderText");
+  const loadProgressBar = $("#loadProgressBar");
+  const loadPercent = $("#loadPercent");
   const errorBox = $("#error");
   const errMsg = $("#errMsg");
   const bookTitleEl = $("#bookTitle");
@@ -534,13 +540,14 @@
     return chapters.map((c) => buildChapter(c.title, c.lines));
   }
 
-  // 异步版：每解析 5000 行让出主线程，onCount(chapterCount) 让 UI 显示进度
-  async function parseNovelAsync(raw, onCount) {
+  // 异步版：每解析 5000 行让出主线程，onProgress(pct 0~100) 让 UI 显示解析进度
+  async function parseNovelAsync(raw, onProgress) {
     const text = (raw || "").replace(/﻿/g, "");
     const lines = text.split(/\r?\n/);
     const total = lines.length;
     const YIELD_EVERY = 5000;
     const sleep = () => new Promise((r) => setTimeout(r, 0));
+    if (onProgress) onProgress(2);
 
     // 第一遍：构建 trimmed 数组（顺便按需让出）
     const trimmed = new Array(total);
@@ -548,6 +555,7 @@
       trimmed[i] = lines[i].replace(/\s+$/, "");
       if ((i & 0x1fff) === 0 && i > 0) await sleep();
     }
+    if (onProgress) onProgress(25);
 
     // 统计各模式命中数
     let best = null;
@@ -556,7 +564,8 @@
       for (let i = 0; i < total; i++) if (isTitleLine(trimmed[i], p.re)) count++;
       if (count >= 2 && (!best || count > best.count)) best = { p, count };
     }
-    if (!best) return [buildChapter("正文", trimmed)];
+    if (!best) { if (onProgress) onProgress(100); return [buildChapter("正文", trimmed)]; }
+    if (onProgress) onProgress(40);
 
     const re = best.p.re;
     const chapters = [];
@@ -566,16 +575,15 @@
       if (isTitleLine(l, re)) {
         cur = { title: l.trim(), lines: [] };
         chapters.push(cur);
-        if (onCount && (chapters.length & 0x3f) === 0) onCount(chapters.length);
       } else if (cur) {
         cur.lines.push(l);
       }
       if ((i % YIELD_EVERY) === 0 && i > 0) {
-        if (onCount) onCount(chapters.length);
+        if (onProgress) onProgress(40 + Math.round(i / total * 60));
         await sleep();
       }
     }
-    if (onCount) onCount(chapters.length);
+    if (onProgress) onProgress(100);
     return chapters.map((c) => buildChapter(c.title, c.lines));
   }
 
@@ -802,12 +810,41 @@
 
   // ============ 文件加载 ============
   // 本地路径或远程 http(s) URL 均可；raw.githubusercontent.com / jsDelivr 等均放行 CORS
-  async function fetchText(src) {
+  // 设置加载进度（0~100）；下载占 0~85%，解析占 85~100%，单调上升避免数字回退
+  function setLoadProgress(pct, text) {
+    const p = Math.max(0, Math.min(100, pct | 0));
+    if (loadProgressBar) loadProgressBar.style.width = p + "%";
+    if (loadPercent) loadPercent.textContent = p + "%";
+    if (text && loaderText) loaderText.textContent = text;
+  }
+
+  // onProgress(pct 0~100) 上报下载进度；基于 content-length 流式读取
+  async function fetchText(src, onProgress) {
     const isRemote = /^https?:\/\//i.test(src);
     const url = isRemote ? src : (encodeURIComponent(src) + "?t=" + Date.now());
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const buf = await res.arrayBuffer();
+    const total = Number(res.headers.get("content-length")) || 0;
+    let buf;
+    if (res.body && res.body.getReader && total > 0) {
+      const reader = res.body.getReader();
+      const chunks = [];
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (onProgress) onProgress(Math.min(99, Math.round(received / total * 100)));
+      }
+      const all = new Uint8Array(received);
+      let pos = 0;
+      for (const c of chunks) { all.set(c, pos); pos += c.length; }
+      buf = all;
+    } else {
+      // 无 content-length 或不支持流式：退化为整块读取（无进度百分比）
+      buf = new Uint8Array(await res.arrayBuffer());
+    }
     // 优先 UTF-8（fatal：碰到非法序列即抛错）；失败回退 GB18030（GBK 超集）
     try {
       return new TextDecoder("utf-8", { fatal: true }).decode(buf);
@@ -820,9 +857,11 @@
     state.bookName = name || "小说";
     state.bookId = id || name || "unknown";
     bookTitleEl.textContent = state.bookName;
-    loaderText.textContent = "解析章节中…";
-    state.chapters = await parseNovelAsync(raw, (n) => { loaderText.textContent = "已识别 " + n + " 章…"; });
-    loaderText.textContent = "准备就绪";
+    setLoadProgress(85, "解析章节中… 0%");
+    state.chapters = await parseNovelAsync(raw, (pct) => {
+      setLoadProgress(85 + Math.round(pct * 0.15), "解析章节中… " + pct + "%");
+    });
+    setLoadProgress(100, "准备就绪");
     loader.style.display = "none";
     errorBox.style.display = "none";
     renderToc("");
@@ -835,9 +874,11 @@
   async function loadBookById(src, title) {
     loader.style.display = "flex";
     errorBox.style.display = "none";
-    loaderText.textContent = "下载中…";
+    setLoadProgress(0, "下载中… 0%");
     try {
-      const raw = await fetchText(src);
+      const raw = await fetchText(src, (pct) => {
+        setLoadProgress(Math.round(pct * 0.85), "下载中… " + pct + "%");
+      });
       rememberLastBook(src);
       await ingest(raw, title || src.split("/").pop().replace(/\.txt$/i, ""), src);
     } catch (e) {
@@ -1049,7 +1090,16 @@
   // 文件选择 / 拖拽兜底
   function readFile(f) {
     if (!f) return;
+    loader.style.display = "flex";
+    errorBox.style.display = "none";
+    setLoadProgress(0, "读取中… 0%");
     const r = new FileReader();
+    r.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const p = Math.round(e.loaded / e.total * 100);
+        setLoadProgress(Math.round(p * 0.85), "读取中… " + p + "%");
+      }
+    };
     r.onload = () => { rememberLastBook(f.name); ingest(r.result, f.name.replace(/\.txt$/i, ""), f.name); };
     r.readAsText(f, "utf-8");
   }
